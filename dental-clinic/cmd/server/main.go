@@ -2,40 +2,49 @@ package main
 
 import (
 	"database/sql"
+	"log"
 
-	"github.com/bootcamp-go/consignas-go-db.git/cmd/server/handler"
-	"github.com/bootcamp-go/consignas-go-db.git/internal/dentist"
-	"github.com/bootcamp-go/consignas-go-db.git/pkg/store"
 	"github.com/gin-gonic/gin"
 	_ "github.com/go-sql-driver/mysql"
+
+	"github.com/YohanaZapata/Sistema-de-turnos/internal/domain"
+	"github.com/YohanaZapata/Sistema-de-turnos/pkg/store"
 )
 
 func main() {
-
-	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/turnos-odontologia") 
+	var err error
+	db, err := sql.Open("mysql", "root:root@tcp(localhost:3306)/turnos-odontologia")
 	if err != nil {
-		panic(err.Error())
-	}
-	err = db.Ping()
-	if err != nil {
-		panic(err.Error())
+		log.Fatal(err)
 	}
 
-	dentistStorage := store.NewSqlStore(db)
-	dentistRepo := repository.NewDentistRepository(dentistStorage)
-	dentistService := service.NewDentistService(dentistRepo)
-	dentistHandler := handler.NewDentistHandler(dentistService)
+	dentistRepository := store.NewSqlStore(db)
+	dentistService := domain.NewService(dentistRepository)
+	dentistHandler := domain.NewHandler(dentistService)
 
 	r := gin.Default()
 
-	r.GET("/ping", func(c *gin.Context) { c.String(200, "pong") })
-	dentists := r.Group("/dentists")
-	{
-		dentists.GET(":id", dentistHandler.GetByID())
-		dentists.POST("", dentistHandler.Create())
-		dentists.DELETE(":id", dentistHandler.Delete())
-		dentists.PATCH(":id", dentistHandler.Update())
+	r.GET("/ping", func(c *gin.Context) {
+		c.String(200, "pong")
+	})
 
+	dentistRoutes := r.Group("/dentistas")
+	{
+		dentistRoutes.GET("/:id", dentistHandler.GetDentistaByID)
+		dentistRoutes.POST("", dentistHandler.CreateDentista)
+		dentistRoutes.DELETE("/:id", dentistHandler.DeleteDentista)
+		dentistRoutes.PATCH("/:id", dentistHandler.UpdateDentista)
+		dentistRoutes.PUT("/:id", dentistHandler.UpdateDentista)
+		dentistRoutes.GET("/", dentistHandler.GetAllDentistas)
+		dentistRoutes.GET("/code/:codeValue", dentistHandler.GetDentistaByCodeValue)
+		dentistRoutes.GET("/published", dentistHandler.GetDentistasByPublished)
+		dentistRoutes.GET("/expiration/:expiration", dentistHandler.GetDentistasByExpiration)
+		dentistRoutes.GET("/price/:price", dentistHandler.GetDentistasByPrice)
+		dentistRoutes.GET("/quantity/:quantity", dentistHandler.GetDentistasByQuantity)
+		dentistRoutes.GET("/matricula/:matricula", dentistHandler.GetDentistasByMatricula)
 	}
-	r.Run(":8080")
+
+	if err := r.Run(":8080"); err != nil {
+		log.Fatal(err)
+	}
 }
